@@ -92,9 +92,31 @@
                     }
                 }
 
+                let drawdownTable = [];
+                let depletedAge = null;
+                if (yearsToRetire >= 0 && yearsInRetirement > 0) {
+                    let balNom = coastFirePV;
+                    let balReal = coastFirePV;
+                    for (let a = currentAge; a < retireAge; a++) { balNom *= (1 + rPre); balReal *= (1 + realRatePre); }
+                    for (let age = retireAge; age < deathAge; age++) {
+                        const startNom = balNom;
+                        const startReal = balReal;
+                        const wNom = annualSpendingPV * Math.pow(1 + i, age - currentAge);
+                        const wReal = annualSpendingPV;
+                        const afterNom = (startNom - wNom) * (1 + rPost);
+                        const afterReal = (startReal - wReal) * (1 + realRatePost);
+                        const depleted = startNom <= wNom;
+                        if (depleted && depletedAge === null) depletedAge = age;
+                        drawdownTable.push({ age, wNom, wReal, endNom: afterNom, endReal: afterReal, depleted });
+                        balNom = afterNom;
+                        balReal = afterReal;
+                        if (afterNom <= 0) break;
+                    }
+                }
+
                 return {
                     coastFirePV, fireTargetPV, fireTargetNominal: fireTargetPV * Math.pow(1 + i, yearsToRetire),
-                    realRatePre: realRatePre * 100, realRatePost: realRatePost * 100, chartData, maxNominal, coastTable
+                    realRatePre: realRatePre * 100, realRatePost: realRatePost * 100, chartData, maxNominal, coastTable, drawdownTable, depletedAge
                 };
             }, [currentAge, retireAge, deathAge, monthlyTargetPV, inflation, cagr, postRetireCagr]);
 
@@ -211,6 +233,52 @@
                 );
             };
 
+            const renderDrawdownTable = () => {
+                if (!results.drawdownTable || results.drawdownTable.length === 0) return null;
+                return (
+                    <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+                        <h3 className="text-lg font-bold mb-1">退休后逐年提款 & 资产剩余表</h3>
+                        <p className="text-sm text-slate-500 mb-4">
+                            从 {retireAge} 岁开始，每年提款过生活（花费随通胀 {inflation}% 逐年变多），剩下的钱继续以退休后 CAGR {postRetireCagr}% 增长。
+                            下面是每一年的花费和年末还剩多少。
+                            {results.depletedAge
+                                ? <span className="text-rose-600 font-semibold"> ⚠️ 按目前参数，资产在约 {results.depletedAge} 岁就见底了。</span>
+                                : <span className="text-emerald-600 font-semibold"> ✓ 一直到 {deathAge} 岁资产都花不完，甚至还在增长。</span>}
+                        </p>
+                        <div className="overflow-x-auto max-h-96 overflow-y-auto border border-slate-100 rounded-lg">
+                            <table className="w-full text-sm text-left">
+                                <thead className="sticky top-0 bg-slate-50">
+                                    <tr className="border-b-2 border-slate-200 text-slate-500">
+                                        <th className="py-2 px-3 font-medium">年龄</th>
+                                        <th className="py-2 px-3 font-medium text-right">当年花费<br/><span className="text-xs text-rose-500 font-normal">账面 (那一年的钱)</span></th>
+                                        <th className="py-2 px-3 font-medium text-right">当年花费<br/><span className="text-xs text-slate-400 font-normal">现值 (今天的钱)</span></th>
+                                        <th className="py-2 px-3 font-medium text-right">年末资产剩余<br/><span className="text-xs text-emerald-600 font-normal">账面</span></th>
+                                        <th className="py-2 px-3 font-medium text-right">年末资产剩余<br/><span className="text-xs text-blue-600 font-normal">现值</span></th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {results.drawdownTable.map((row) => (
+                                        <tr key={row.age} className={`border-b border-slate-100 ${row.depleted ? 'bg-rose-50 font-semibold text-rose-700' : 'hover:bg-slate-50'}`}>
+                                            <td className="py-2 px-3">
+                                                {row.age} 岁
+                                                {row.age === retireAge && <span className="ml-2 text-xs text-rose-600 font-semibold">(退休)</span>}
+                                            </td>
+                                            <td className="py-2 px-3 text-right font-mono text-rose-600">{formatMYR(row.wNom)}</td>
+                                            <td className="py-2 px-3 text-right font-mono text-slate-400">{formatMYR(row.wReal)}</td>
+                                            <td className="py-2 px-3 text-right font-mono text-emerald-700">{formatMYR(row.endNom)}</td>
+                                            <td className="py-2 px-3 text-right font-mono text-blue-700">{formatMYR(row.endReal)}</td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                        <p className="text-xs text-slate-400 mt-3">
+                            * 花费账面 = 现值月开销 RM {monthlyTargetPV.toLocaleString()} × 12，随通胀逐年放大；年末资产剩余 = (年初资产 − 当年花费) × (1 + {postRetireCagr}%)。资产见底那一年会标红。
+                        </p>
+                    </div>
+                );
+            };
+
             return (
                 <div className="min-h-screen p-4 md:p-8 font-sans text-slate-800">
                     <div className="max-w-6xl mx-auto">
@@ -256,6 +324,7 @@
                                     <p className="text-sm text-slate-500">抗通胀实际回酬率: <span className="text-blue-600 font-semibold">退休前 {results.realRatePre.toFixed(2)}%</span> | <span className="text-emerald-600 font-semibold">退休后 {results.realRatePost.toFixed(2)}%</span></p>
                                     {renderChart()}
                                 </div>
+                                {renderDrawdownTable()}
                             </div>
                         </div>
                     </div>

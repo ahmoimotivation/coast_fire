@@ -21,7 +21,7 @@
             const [deathAge, setDeathAge] = useState(120);
             const [monthlyTargetPV, setMonthlyTargetPV] = useState(38700);
             const [inflation, setInflation] = useState(5);
-            const [cagr, setCagr] = useState(8); 
+            const [cagr, setCagr] = useState(8);
             const [postRetireCagr, setPostRetireCagr] = useState(6);
             const [hoveredData, setHoveredData] = useState(null);
 
@@ -29,8 +29,8 @@
                 const rPre = cagr / 100;
                 const rPost = postRetireCagr / 100;
                 const i = inflation / 100;
-                const realRatePre = (1 + rPre) / (1 + i) - 1; 
-                const realRatePost = (1 + rPost) / (1 + i) - 1; 
+                const realRatePre = (1 + rPre) / (1 + i) - 1;
+                const realRatePost = (1 + rPost) / (1 + i) - 1;
                 const annualSpendingPV = monthlyTargetPV * 12;
 
                 const yearsToRetire = retireAge - currentAge;
@@ -51,6 +51,17 @@
                         coastFirePV = fireTargetPV;
                     } else {
                         coastFirePV = fireTargetPV / Math.pow(1 + realRatePre, yearsToRetire);
+                    }
+                }
+
+                let coastTable = [];
+                if (yearsToRetire >= 0) {
+                    for (let age = currentAge; age <= retireAge; age++) {
+                        const n = age - currentAge;
+                        const yearsLeft = retireAge - age;
+                        const nominal = coastFirePV * Math.pow(1 + rPre, n);
+                        const realPV = coastFirePV * Math.pow(1 + realRatePre, n);
+                        coastTable.push({ age, yearsLeft, nominal, realPV, isRetire: age === retireAge });
                     }
                 }
 
@@ -83,7 +94,7 @@
 
                 return {
                     coastFirePV, fireTargetPV, fireTargetNominal: fireTargetPV * Math.pow(1 + i, yearsToRetire),
-                    realRatePre: realRatePre * 100, realRatePost: realRatePost * 100, chartData, maxNominal
+                    realRatePre: realRatePre * 100, realRatePost: realRatePost * 100, chartData, maxNominal, coastTable
                 };
             }, [currentAge, retireAge, deathAge, monthlyTargetPV, inflation, cagr, postRetireCagr]);
 
@@ -158,6 +169,48 @@
                 );
             };
 
+            const renderCoastTable = () => {
+                if (!results.coastTable || results.coastTable.length === 0) return null;
+                return (
+                    <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+                        <h3 className="text-lg font-bold mb-1">逐年 Coast FIRE 进度表</h3>
+                        <p className="text-sm text-slate-500 mb-4">
+                            如果你现在就存够 <span className="font-semibold text-blue-600">{formatMYR(results.coastFirePV)}</span> 并让它自动增长（不再投入本金），
+                            下面是你每一年账户里「应该」达到的数字。可以拿来对照你的实际组合，检查有没有 on track。
+                        </p>
+                        <div className="overflow-x-auto">
+                            <table className="w-full text-sm text-left">
+                                <thead>
+                                    <tr className="border-b-2 border-slate-200 text-slate-500">
+                                        <th className="py-2 pr-4 font-medium">年龄</th>
+                                        <th className="py-2 pr-4 font-medium">距退休</th>
+                                        <th className="py-2 pr-4 font-medium text-right">Coast FIRE 数字<br/><span className="text-xs text-emerald-600 font-normal">账面 (那一年的钱)</span></th>
+                                        <th className="py-2 pl-4 font-medium text-right">购买力现值<br/><span className="text-xs text-blue-600 font-normal">(今天的钱)</span></th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {results.coastTable.map((row) => (
+                                        <tr key={row.age} className={`border-b border-slate-100 ${row.isRetire ? 'bg-rose-50 font-bold' : (row.age === currentAge ? 'bg-blue-50' : 'hover:bg-slate-50')}`}>
+                                            <td className="py-2 pr-4">
+                                                {row.age} 岁
+                                                {row.age === currentAge && <span className="ml-2 text-xs text-blue-600 font-semibold">(现在)</span>}
+                                                {row.isRetire && <span className="ml-2 text-xs text-rose-600 font-semibold">(退休)</span>}
+                                            </td>
+                                            <td className="py-2 pr-4 text-slate-500">{row.yearsLeft > 0 ? `${row.yearsLeft} 年` : '—'}</td>
+                                            <td className="py-2 pr-4 text-right font-mono text-emerald-700">{formatMYR(row.nominal)}</td>
+                                            <td className="py-2 pl-4 text-right font-mono text-blue-700">{formatMYR(row.realPV)}</td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                        <p className="text-xs text-slate-400 mt-3">
+                            * 账面 = 用退休前 CAGR {cagr}% 名义增长；购买力现值 = 用抗通胀实际回酬 {results.realRatePre.toFixed(2)}% 增长。退休当年账面应达到目标账面 FV。
+                        </p>
+                    </div>
+                );
+            };
+
             return (
                 <div className="min-h-screen p-4 md:p-8 font-sans text-slate-800">
                     <div className="max-w-6xl mx-auto">
@@ -183,7 +236,7 @@
                             </div>
                             <div className="lg:col-span-8 space-y-6">
                                 <div className="bg-blue-600 text-white p-8 rounded-2xl shadow-md">
-                                    <p className="text-blue-100 font-medium mb-2 text-lg">现在需要的 Coast FIRE 启动本金</p>
+                                    <p className="text-blue-100 font-medium mb-2 text-lg">现在需要的 Coast FIRE 启动本金 ({currentAge}岁)</p>
                                     <h2 className="text-4xl md:text-5xl font-extrabold mb-4">{formatMYR(results.coastFirePV)}</h2>
                                     <p className="text-blue-50 text-sm md:text-base">拥有这笔资金并维持 {cagr}% 增长，现在即可停止投入本金。</p>
                                 </div>
@@ -197,6 +250,7 @@
                                         <p className="text-2xl font-bold text-emerald-600">{formatMYR(results.fireTargetNominal)}</p>
                                     </div>
                                 </div>
+                                {renderCoastTable()}
                                 <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
                                     <h3 className="text-lg font-bold mb-1">资产生命周期模拟</h3>
                                     <p className="text-sm text-slate-500">抗通胀实际回酬率: <span className="text-blue-600 font-semibold">退休前 {results.realRatePre.toFixed(2)}%</span> | <span className="text-emerald-600 font-semibold">退休后 {results.realRatePost.toFixed(2)}%</span></p>

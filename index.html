@@ -13,22 +13,38 @@
     <div id="root"></div>
 
     <script type="text/babel">
-        const { useState, useMemo } = React;
+        const { useState, useMemo, useEffect } = React;
+
+        // localStorage: 读取已保存的输入（没有就用预设）
+        const LS = (k, d) => { try { const v = localStorage.getItem('cf_' + k); return v === null ? d : Number(v); } catch (e) { return d; } };
 
         function CoastFireApp() {
-            const [currentAge, setCurrentAge] = useState(29);
-            const [retireAge, setRetireAge] = useState(40);
-            const [deathAge, setDeathAge] = useState(120);
-            const [monthlyTargetPV, setMonthlyTargetPV] = useState(38700);
-            const [inflation, setInflation] = useState(5);
-            const [cagr, setCagr] = useState(8);
-            const [postRetireCagr, setPostRetireCagr] = useState(6);
+            const [currentAge, setCurrentAge] = useState(LS('currentAge', 29));
+            const [retireAge, setRetireAge] = useState(LS('retireAge', 40));
+            const [deathAge, setDeathAge] = useState(LS('deathAge', 120));
+            const [monthlyTargetPV, setMonthlyTargetPV] = useState(LS('monthlyTargetPV', 38700));
+            const [inflation, setInflation] = useState(LS('inflation', 5));
+            const [cagr, setCagr] = useState(LS('cagr', 8));
+            const [postRetireCagr, setPostRetireCagr] = useState(LS('postRetireCagr', 6));
             // 新增：我的现况
-            const [currentNetWorth, setCurrentNetWorth] = useState(100000);
-            const [monthlyIncome, setMonthlyIncome] = useState(8000);
-            const [monthlyExpense, setMonthlyExpense] = useState(5000);
-            const [incomeGrowth, setIncomeGrowth] = useState(5);
+            const [currentNetWorth, setCurrentNetWorth] = useState(LS('currentNetWorth', 100000));
+            const [monthlyIncome, setMonthlyIncome] = useState(LS('monthlyIncome', 8000));
+            const [monthlyExpense, setMonthlyExpense] = useState(LS('monthlyExpense', 5000));
+            const [incomeGrowth, setIncomeGrowth] = useState(LS('incomeGrowth', 5));
             const [hoveredData, setHoveredData] = useState(null);
+
+            // 每次输入改变就自动保存进浏览器
+            useEffect(() => {
+                try {
+                    const s = { currentAge, retireAge, deathAge, monthlyTargetPV, inflation, cagr, postRetireCagr, currentNetWorth, monthlyIncome, monthlyExpense, incomeGrowth };
+                    Object.keys(s).forEach(k => localStorage.setItem('cf_' + k, s[k]));
+                } catch (e) {}
+            }, [currentAge, retireAge, deathAge, monthlyTargetPV, inflation, cagr, postRetireCagr, currentNetWorth, monthlyIncome, monthlyExpense, incomeGrowth]);
+
+            const resetAll = () => {
+                try { ['currentAge','retireAge','deathAge','monthlyTargetPV','inflation','cagr','postRetireCagr','currentNetWorth','monthlyIncome','monthlyExpense','incomeGrowth'].forEach(k => localStorage.removeItem('cf_' + k)); } catch (e) {}
+                setCurrentAge(29); setRetireAge(40); setDeathAge(120); setMonthlyTargetPV(38700); setInflation(5); setCagr(8); setPostRetireCagr(6); setCurrentNetWorth(100000); setMonthlyIncome(8000); setMonthlyExpense(5000); setIncomeGrowth(5);
+            };
 
             const results = useMemo(() => {
                 const rPre = cagr / 100;
@@ -59,13 +75,10 @@
                     }
                 }
 
-                // 逐年 Coast FIRE 数字：每一年应达到的启动本金
-                // 账面 (Nominal FV) = 你账户里实际应该看到的数字（今年的钱 → 那一年的钱，用名义回酬增长）
-                // 购买力现值 (Real PV) = 换算回今天购买力后的数字（用抗通胀实际回酬增长）
                 let coastTable = [];
                 if (yearsToRetire >= 0) {
                     for (let age = currentAge; age <= retireAge; age++) {
-                        const n = age - currentAge; // 已过年数
+                        const n = age - currentAge;
                         const yearsLeft = retireAge - age;
                         const nominal = coastFirePV * Math.pow(1 + rPre, n);
                         const realPV = coastFirePV * Math.pow(1 + realRatePre, n);
@@ -81,7 +94,7 @@
                 if (yearsToRetire >= 0) {
                     for (let age = currentAge; age <= retireAge; age++) {
                         const n = age - currentAge;
-                        const required = coastFirePV * Math.pow(1 + rPre, n); // 该年所需启动本金（越迟越大）
+                        const required = coastFirePV * Math.pow(1 + rPre, n);
                         projByAge[age] = projNW;
                         if (coastFireAge === null && projNW >= required) {
                             coastFireAge = age; coastFireNW = projNW; coastFireRequired = required;
@@ -89,10 +102,9 @@
                         const incMon = monthlyIncome * Math.pow(1 + gInc, n);
                         const expMon = monthlyExpense * Math.pow(1 + i, n);
                         const annualSaving = (incMon - expMon) * 12; // 允许负数：负现金流(透支)会吃掉净值，可能永远追不上
-                        projNW = projNW * (1 + rPre) + annualSaving; // 明年年初净值
+                        projNW = projNW * (1 + rPre) + annualSaving;
                     }
                 }
-                // 退休当年仍未上岸 → 差多少
                 let shortfallAtRetire = null;
                 if (coastFireAge === null && yearsToRetire >= 0) {
                     const reqRetire = coastFirePV * Math.pow(1 + rPre, retireAge - currentAge);
@@ -101,7 +113,6 @@
                 }
                 let maxProj = 0;
                 Object.values(projByAge).forEach(v => { if (v > maxProj) maxProj = v; });
-                // 把预计净值并进逐年表
                 coastTable = coastTable.map(r => ({ ...r, projNW: projByAge[r.age], reached: projByAge[r.age] >= r.nominal }));
 
                 let chartData = [];
@@ -132,7 +143,6 @@
                     }
                 }
 
-                // 退休后逐年提款 & 资产剩余表
                 let drawdownTable = [];
                 let depletedAge = null;
                 if (yearsToRetire >= 0 && yearsInRetirement > 0) {
@@ -345,9 +355,12 @@
             return (
                 <div className="min-h-screen p-4 md:p-8 font-sans text-slate-800">
                     <div className="max-w-6xl mx-auto">
-                        <header className="mb-8">
-                            <h1 className="text-3xl font-bold text-slate-900 mb-2">Coast FIRE 自由计算器</h1>
-                            <p className="text-slate-600">探索规律，掌控人生。计算你现在需要准备多少钱，就能在 {retireAge} 岁安心退休。</p>
+                        <header className="mb-8 flex flex-wrap justify-between items-start gap-3">
+                            <div>
+                                <h1 className="text-3xl font-bold text-slate-900 mb-2">Coast FIRE 自由计算器</h1>
+                                <p className="text-slate-600">探索规律，掌控人生。计算你现在需要准备多少钱，就能在 {retireAge} 岁安心退休。<span className="text-emerald-600 font-medium">（输入会自动保存，下次打开还在）</span></p>
+                            </div>
+                            <button onClick={resetAll} className="text-sm px-4 py-2 rounded-lg border border-slate-300 text-slate-600 hover:bg-slate-100 whitespace-nowrap">↺ 重置为预设</button>
                         </header>
                         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
                             <div className="lg:col-span-4 space-y-6 bg-white p-6 rounded-2xl shadow-sm border border-slate-200">

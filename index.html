@@ -23,6 +23,11 @@
             const [inflation, setInflation] = useState(5);
             const [cagr, setCagr] = useState(8);
             const [postRetireCagr, setPostRetireCagr] = useState(6);
+            // 新增：我的现况
+            const [currentNetWorth, setCurrentNetWorth] = useState(100000);
+            const [monthlyIncome, setMonthlyIncome] = useState(8000);
+            const [monthlyExpense, setMonthlyExpense] = useState(5000);
+            const [incomeGrowth, setIncomeGrowth] = useState(5);
             const [hoveredData, setHoveredData] = useState(null);
 
             const results = useMemo(() => {
@@ -54,16 +59,50 @@
                     }
                 }
 
+                // 逐年 Coast FIRE 数字：每一年应达到的启动本金
+                // 账面 (Nominal FV) = 你账户里实际应该看到的数字（今年的钱 → 那一年的钱，用名义回酬增长）
+                // 购买力现值 (Real PV) = 换算回今天购买力后的数字（用抗通胀实际回酬增长）
                 let coastTable = [];
                 if (yearsToRetire >= 0) {
                     for (let age = currentAge; age <= retireAge; age++) {
-                        const n = age - currentAge;
+                        const n = age - currentAge; // 已过年数
                         const yearsLeft = retireAge - age;
                         const nominal = coastFirePV * Math.pow(1 + rPre, n);
                         const realPV = coastFirePV * Math.pow(1 + realRatePre, n);
                         coastTable.push({ age, yearsLeft, nominal, realPV, isRetire: age === retireAge });
                     }
                 }
+
+                // ===== 我的现况投影：几时达到 Coast FIRE =====
+                const gInc = incomeGrowth / 100;
+                const projByAge = {};
+                let coastFireAge = null, coastFireNW = 0, coastFireRequired = 0;
+                let projNW = currentNetWorth;
+                if (yearsToRetire >= 0) {
+                    for (let age = currentAge; age <= retireAge; age++) {
+                        const n = age - currentAge;
+                        const required = coastFirePV * Math.pow(1 + rPre, n); // 该年所需启动本金（越迟越大）
+                        projByAge[age] = projNW;
+                        if (coastFireAge === null && projNW >= required) {
+                            coastFireAge = age; coastFireNW = projNW; coastFireRequired = required;
+                        }
+                        const incMon = monthlyIncome * Math.pow(1 + gInc, n);
+                        const expMon = monthlyExpense * Math.pow(1 + i, n);
+                        const annualSaving = Math.max(0, (incMon - expMon) * 12);
+                        projNW = projNW * (1 + rPre) + annualSaving; // 明年年初净值
+                    }
+                }
+                // 退休当年仍未上岸 → 差多少
+                let shortfallAtRetire = null;
+                if (coastFireAge === null && yearsToRetire >= 0) {
+                    const reqRetire = coastFirePV * Math.pow(1 + rPre, retireAge - currentAge);
+                    const projRetire = projByAge[retireAge] !== undefined ? projByAge[retireAge] : projNW;
+                    shortfallAtRetire = reqRetire - projRetire;
+                }
+                let maxProj = 0;
+                Object.values(projByAge).forEach(v => { if (v > maxProj) maxProj = v; });
+                // 把预计净值并进逐年表
+                coastTable = coastTable.map(r => ({ ...r, projNW: projByAge[r.age], reached: projByAge[r.age] >= r.nominal }));
 
                 let chartData = [];
                 let currentReal = coastFirePV;
@@ -76,6 +115,7 @@
                             age,
                             real: Math.max(0, currentReal),
                             nominal: Math.max(0, currentNominal),
+                            proj: (age <= retireAge && projByAge[age] !== undefined) ? Math.max(0, projByAge[age]) : null,
                         });
 
                         if (currentNominal > maxNominal) maxNominal = currentNominal;
@@ -92,6 +132,7 @@
                     }
                 }
 
+                // 退休后逐年提款 & 资产剩余表
                 let drawdownTable = [];
                 let depletedAge = null;
                 if (yearsToRetire >= 0 && yearsInRetirement > 0) {
@@ -116,9 +157,10 @@
 
                 return {
                     coastFirePV, fireTargetPV, fireTargetNominal: fireTargetPV * Math.pow(1 + i, yearsToRetire),
-                    realRatePre: realRatePre * 100, realRatePost: realRatePost * 100, chartData, maxNominal, coastTable, drawdownTable, depletedAge
+                    realRatePre: realRatePre * 100, realRatePost: realRatePost * 100, chartData, maxNominal, coastTable, drawdownTable, depletedAge,
+                    coastFireAge, coastFireNW, coastFireRequired, shortfallAtRetire, maxProj
                 };
-            }, [currentAge, retireAge, deathAge, monthlyTargetPV, inflation, cagr, postRetireCagr]);
+            }, [currentAge, retireAge, deathAge, monthlyTargetPV, inflation, cagr, postRetireCagr, currentNetWorth, monthlyIncome, monthlyExpense, incomeGrowth]);
 
             const formatMYR = (num) => {
                 if (isNaN(num) || num < 0) return "RM 0";
@@ -136,13 +178,14 @@
                 const width = 800; const height = 300; const padding = { top: 20, right: 20, bottom: 30, left: 60 };
                 const chartWidth = width - padding.left - padding.right; const chartHeight = height - padding.top - padding.bottom;
                 const data = results.chartData; const minAge = currentAge; const maxAge = deathAge;
-                const maxY = Math.max(results.maxNominal * 1.1, 100000);
+                const maxY = Math.max(results.maxNominal * 1.1, (results.maxProj || 0) * 1.1, 100000);
 
                 const getX = (age) => padding.left + ((age - minAge) / (maxAge - minAge)) * chartWidth;
                 const getY = (value) => padding.top + chartHeight - (value / Math.max(maxY, 1)) * chartHeight;
 
                 const nominalPoints = data.map(d => `${getX(d.age)},${getY(d.nominal)}`).join(' ');
                 const realPoints = data.map(d => `${getX(d.age)},${getY(d.real)}`).join(' ');
+                const projPoints = data.filter(d => d.proj !== null && d.proj !== undefined).map(d => `${getX(d.age)},${getY(d.proj)}`).join(' ');
 
                 return (
                     <div className="relative w-full overflow-hidden mt-6 bg-slate-50 rounded-xl border border-slate-200">
@@ -157,6 +200,14 @@
                             )}
                             <polyline points={realPoints} fill="none" stroke="#3b82f6" strokeWidth="3" />
                             <polyline points={nominalPoints} fill="none" stroke="#10b981" strokeWidth="3" strokeDasharray="4,4" />
+                            {projPoints && <polyline points={projPoints} fill="none" stroke="#f97316" strokeWidth="3" />}
+                            {results.coastFireAge && (
+                                <g>
+                                    <line x1={getX(results.coastFireAge)} y1={padding.top} x2={getX(results.coastFireAge)} y2={height - padding.bottom} stroke="#f97316" strokeWidth="2" strokeDasharray="3,3" />
+                                    <circle cx={getX(results.coastFireAge)} cy={getY(results.coastFireNW)} r="5" fill="#f97316" stroke="#fff" strokeWidth="2" />
+                                    <text x={getX(results.coastFireAge) + 6} y={padding.top + 34} fontSize="12" fill="#f97316" fontWeight="bold">上岸 ({results.coastFireAge}岁)</text>
+                                </g>
+                            )}
                             {data.map((d, i) => (
                                 <rect key={i} x={getX(d.age) - (chartWidth / data.length / 2)} y={padding.top} width={chartWidth / data.length} height={chartHeight} fill="transparent"
                                     onMouseEnter={() => setHoveredData(d)} onMouseLeave={() => setHoveredData(null)} className="cursor-crosshair" />
@@ -171,6 +222,7 @@
                                     <line x1={getX(hoveredData.age)} y1={padding.top} x2={getX(hoveredData.age)} y2={height - padding.bottom} stroke="#94a3b8" strokeWidth="1" />
                                     <circle cx={getX(hoveredData.age)} cy={getY(hoveredData.nominal)} r="4" fill="#10b981" />
                                     <circle cx={getX(hoveredData.age)} cy={getY(hoveredData.real)} r="4" fill="#3b82f6" />
+                                    {hoveredData.proj !== null && hoveredData.proj !== undefined && <circle cx={getX(hoveredData.age)} cy={getY(hoveredData.proj)} r="4" fill="#f97316" />}
                                 </g>
                             )}
                         </svg>
@@ -181,10 +233,16 @@
                                     <div className="w-3 h-3 border-2 border-emerald-500 border-dashed"></div>
                                     <span>账面资产: {formatMYR(hoveredData.nominal)}</span>
                                 </div>
-                                <div className="flex items-center gap-2 text-blue-600">
+                                <div className="flex items-center gap-2 text-blue-600 mb-1">
                                     <div className="w-3 h-3 bg-blue-500"></div>
                                     <span>购买力现值: {formatMYR(hoveredData.real)}</span>
                                 </div>
+                                {hoveredData.proj !== null && hoveredData.proj !== undefined && (
+                                    <div className="flex items-center gap-2 text-orange-600">
+                                        <div className="w-3 h-3 bg-orange-500"></div>
+                                        <span>你的预计净值: {formatMYR(hoveredData.proj)}</span>
+                                    </div>
+                                )}
                             </div>
                         )}
                     </div>
@@ -197,8 +255,8 @@
                     <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
                         <h3 className="text-lg font-bold mb-1">逐年 Coast FIRE 进度表</h3>
                         <p className="text-sm text-slate-500 mb-4">
-                            如果你现在就存够 <span className="font-semibold text-blue-600">{formatMYR(results.coastFirePV)}</span> 并让它自动增长（不再投入本金），
-                            下面是你每一年账户里「应该」达到的数字。可以拿来对照你的实际组合，检查有没有 on track。
+                            <span className="font-semibold text-emerald-600">绿色 = 每一年所需的 Coast FIRE 启动本金</span>——越迟才存到，需要的越大（复利时间变短）。
+                            <span className="font-semibold text-orange-600">橙色 = 你按现况预计的净值</span>（含每年收入成长 + 储蓄）。橙色第一次 ≥ 绿色那一年，就是你<span className="font-semibold text-orange-600">「上岸」</span>的时候。
                         </p>
                         <div className="overflow-x-auto">
                             <table className="w-full text-sm text-left">
@@ -207,19 +265,24 @@
                                         <th className="py-2 pr-4 font-medium">年龄</th>
                                         <th className="py-2 pr-4 font-medium">距退休</th>
                                         <th className="py-2 pr-4 font-medium text-right">Coast FIRE 数字<br/><span className="text-xs text-emerald-600 font-normal">账面 (那一年的钱)</span></th>
+                                        <th className="py-2 pr-4 font-medium text-right">你的预计净值<br/><span className="text-xs text-orange-600 font-normal">(那一年的钱)</span></th>
+                                        <th className="py-2 pr-4 font-medium text-center">状态</th>
                                         <th className="py-2 pl-4 font-medium text-right">购买力现值<br/><span className="text-xs text-blue-600 font-normal">(今天的钱)</span></th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     {results.coastTable.map((row) => (
-                                        <tr key={row.age} className={`border-b border-slate-100 ${row.isRetire ? 'bg-rose-50 font-bold' : (row.age === currentAge ? 'bg-blue-50' : 'hover:bg-slate-50')}`}>
+                                        <tr key={row.age} className={`border-b border-slate-100 ${row.age === results.coastFireAge ? 'bg-orange-100 font-semibold' : (row.isRetire ? 'bg-rose-50 font-bold' : (row.age === currentAge ? 'bg-blue-50' : 'hover:bg-slate-50'))}`}>
                                             <td className="py-2 pr-4">
                                                 {row.age} 岁
                                                 {row.age === currentAge && <span className="ml-2 text-xs text-blue-600 font-semibold">(现在)</span>}
+                                                {row.age === results.coastFireAge && <span className="ml-2 text-xs text-orange-600 font-semibold">(上岸!)</span>}
                                                 {row.isRetire && <span className="ml-2 text-xs text-rose-600 font-semibold">(退休)</span>}
                                             </td>
                                             <td className="py-2 pr-4 text-slate-500">{row.yearsLeft > 0 ? `${row.yearsLeft} 年` : '—'}</td>
                                             <td className="py-2 pr-4 text-right font-mono text-emerald-700">{formatMYR(row.nominal)}</td>
+                                            <td className="py-2 pr-4 text-right font-mono text-orange-700">{formatMYR(row.projNW)}</td>
+                                            <td className="py-2 pr-4 text-center">{row.reached ? <span className="text-emerald-600 font-bold">✓ 达标</span> : <span className="text-rose-500 text-xs">差 {formatShortMYR(row.nominal - row.projNW)}</span>}</td>
                                             <td className="py-2 pl-4 text-right font-mono text-blue-700">{formatMYR(row.realPV)}</td>
                                         </tr>
                                     ))}
@@ -301,6 +364,14 @@
                                     <div><label className="block text-sm font-medium text-slate-700 mb-1">退休前 CAGR (%)</label><div className="flex items-center gap-2"><input type="range" min="0" max="30" step="0.1" value={cagr} onChange={(e) => setCagr(Number(e.target.value))} className="w-full" /><span className="w-12 text-right font-mono">{cagr}%</span></div></div>
                                     <div><label className="block text-sm font-medium text-slate-700 mb-1">退休后保守 CAGR (%)</label><div className="flex items-center gap-2"><input type="range" min="0" max="30" step="0.1" value={postRetireCagr} onChange={(e) => setPostRetireCagr(Number(e.target.value))} className="w-full" /><span className="w-12 text-right font-mono">{postRetireCagr}%</span></div></div>
                                 </div>
+
+                                <h2 className="text-xl font-bold border-b pb-2 pt-4">我的现况 <span className="text-sm font-normal text-orange-600">（看几时上岸）</span></h2>
+                                <div className="space-y-4">
+                                    <div><label className="block text-sm font-medium text-slate-700 mb-1">现在的净值 Net Worth</label><div className="relative"><span className="absolute left-3 top-2 text-slate-500">RM</span><input type="number" value={currentNetWorth} onChange={(e) => setCurrentNetWorth(Number(e.target.value))} className="w-full p-2 pl-10 border border-slate-300 rounded focus:ring-2 focus:ring-orange-500 outline-none" /></div></div>
+                                    <div><label className="block text-sm font-medium text-slate-700 mb-1">现在每月收入</label><div className="relative"><span className="absolute left-3 top-2 text-slate-500">RM</span><input type="number" value={monthlyIncome} onChange={(e) => setMonthlyIncome(Number(e.target.value))} className="w-full p-2 pl-10 border border-slate-300 rounded focus:ring-2 focus:ring-orange-500 outline-none" /></div></div>
+                                    <div><label className="block text-sm font-medium text-slate-700 mb-1">现在每月生活费</label><div className="relative"><span className="absolute left-3 top-2 text-slate-500">RM</span><input type="number" value={monthlyExpense} onChange={(e) => setMonthlyExpense(Number(e.target.value))} className="w-full p-2 pl-10 border border-slate-300 rounded focus:ring-2 focus:ring-orange-500 outline-none" /></div><p className="text-xs text-slate-400 mt-1">每月可存 ≈ RM {Math.max(0, monthlyIncome - monthlyExpense).toLocaleString()}（生活费会随通胀 {inflation}% 逐年变多）</p></div>
+                                    <div><label className="block text-sm font-medium text-slate-700 mb-1">未来每年收入增加 (%)</label><div className="flex items-center gap-2"><input type="range" min="0" max="20" step="0.5" value={incomeGrowth} onChange={(e) => setIncomeGrowth(Number(e.target.value))} className="w-full accent-orange-500" /><span className="w-12 text-right font-mono">{incomeGrowth}%</span></div></div>
+                                </div>
                             </div>
                             <div className="lg:col-span-8 space-y-6">
                                 <div className="bg-blue-600 text-white p-8 rounded-2xl shadow-md">
@@ -308,6 +379,20 @@
                                     <h2 className="text-4xl md:text-5xl font-extrabold mb-4">{formatMYR(results.coastFirePV)}</h2>
                                     <p className="text-blue-50 text-sm md:text-base">拥有这笔资金并维持 {cagr}% 增长，现在即可停止投入本金。</p>
                                 </div>
+
+                                {results.coastFireAge !== null ? (
+                                    <div className="bg-orange-500 text-white p-8 rounded-2xl shadow-md">
+                                        <p className="text-orange-100 font-medium mb-2 text-lg">按你的现况，预计几时上岸 (达到 Coast FIRE)</p>
+                                        <h2 className="text-4xl md:text-5xl font-extrabold mb-2">{results.coastFireAge} 岁 <span className="text-2xl md:text-3xl font-bold">（还有 {results.coastFireAge - currentAge} 年）</span></h2>
+                                        <p className="text-orange-50 text-sm md:text-base">那一年你的预计净值 {formatMYR(results.coastFireNW)} ≥ 当年所需 Coast FIRE {formatMYR(results.coastFireRequired)}。之后不必再存，靠复利到 {retireAge} 岁退休。</p>
+                                    </div>
+                                ) : (
+                                    <div className="bg-rose-500 text-white p-8 rounded-2xl shadow-md">
+                                        <p className="text-rose-100 font-medium mb-2 text-lg">按你的现况，到 {retireAge} 岁还没到 Coast FIRE</p>
+                                        <h2 className="text-3xl md:text-4xl font-extrabold mb-2">还差 {formatMYR(results.shortfallAtRetire)}</h2>
+                                        <p className="text-rose-50 text-sm md:text-base">拉高收入成长 / 多存一点 / 提高退休前 CAGR，或调整退休年龄与目标生活费，再看看。越迟开始，需要的 Coast FIRE 越大。</p>
+                                    </div>
+                                )}
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                     <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
                                         <p className="text-slate-500 text-sm font-medium mb-1">退休时 ({retireAge}岁) 目标总资金 (现值 PV)</p>

@@ -88,7 +88,7 @@
                         }
                         const incMon = monthlyIncome * Math.pow(1 + gInc, n);
                         const expMon = monthlyExpense * Math.pow(1 + i, n);
-                        const annualSaving = Math.max(0, (incMon - expMon) * 12);
+                        const annualSaving = (incMon - expMon) * 12; // 允许负数：负现金流(透支)会吃掉净值，可能永远追不上
                         projNW = projNW * (1 + rPre) + annualSaving; // 明年年初净值
                     }
                 }
@@ -256,7 +256,7 @@
                         <h3 className="text-lg font-bold mb-1">逐年 Coast FIRE 进度表</h3>
                         <p className="text-sm text-slate-500 mb-4">
                             <span className="font-semibold text-emerald-600">绿色 = 每一年所需的 Coast FIRE 启动本金</span>——越迟才存到，需要的越大（复利时间变短）。
-                            <span className="font-semibold text-orange-600">橙色 = 你按现况预计的净值</span>（含每年收入成长 + 储蓄）。橙色第一次 ≥ 绿色那一年，就是你<span className="font-semibold text-orange-600">「上岸」</span>的时候。
+                            <span className="font-semibold text-orange-600">橙色 = 你按现况预计的净值</span>（含每年收入成长 + 储蓄；若负现金流会倒退）。橙色第一次 ≥ 绿色那一年，就是你<span className="font-semibold text-orange-600">「上岸」</span>的时候。
                         </p>
                         <div className="overflow-x-auto">
                             <table className="w-full text-sm text-left">
@@ -369,7 +369,7 @@
                                 <div className="space-y-4">
                                     <div><label className="block text-sm font-medium text-slate-700 mb-1">现在的净值 Net Worth</label><div className="relative"><span className="absolute left-3 top-2 text-slate-500">RM</span><input type="number" value={currentNetWorth} onChange={(e) => setCurrentNetWorth(Number(e.target.value))} className="w-full p-2 pl-10 border border-slate-300 rounded focus:ring-2 focus:ring-orange-500 outline-none" /></div></div>
                                     <div><label className="block text-sm font-medium text-slate-700 mb-1">现在每月收入</label><div className="relative"><span className="absolute left-3 top-2 text-slate-500">RM</span><input type="number" value={monthlyIncome} onChange={(e) => setMonthlyIncome(Number(e.target.value))} className="w-full p-2 pl-10 border border-slate-300 rounded focus:ring-2 focus:ring-orange-500 outline-none" /></div></div>
-                                    <div><label className="block text-sm font-medium text-slate-700 mb-1">现在每月生活费</label><div className="relative"><span className="absolute left-3 top-2 text-slate-500">RM</span><input type="number" value={monthlyExpense} onChange={(e) => setMonthlyExpense(Number(e.target.value))} className="w-full p-2 pl-10 border border-slate-300 rounded focus:ring-2 focus:ring-orange-500 outline-none" /></div><p className="text-xs text-slate-400 mt-1">每月可存 ≈ RM {Math.max(0, monthlyIncome - monthlyExpense).toLocaleString()}（生活费会随通胀 {inflation}% 逐年变多）</p></div>
+                                    <div><label className="block text-sm font-medium text-slate-700 mb-1">现在每月生活费</label><div className="relative"><span className="absolute left-3 top-2 text-slate-500">RM</span><input type="number" value={monthlyExpense} onChange={(e) => setMonthlyExpense(Number(e.target.value))} className="w-full p-2 pl-10 border border-slate-300 rounded focus:ring-2 focus:ring-orange-500 outline-none" /></div><p className={`text-xs mt-1 ${(monthlyIncome - monthlyExpense) < 0 ? 'text-rose-500 font-semibold' : 'text-slate-400'}`}>{(monthlyIncome - monthlyExpense) >= 0 ? `每月可存 ≈ RM ${(monthlyIncome - monthlyExpense).toLocaleString()}` : `⚠️ 每月透支 RM ${Math.abs(monthlyIncome - monthlyExpense).toLocaleString()}（负现金流会吃掉净值）`}（生活费随通胀 {inflation}% 逐年变多，收入随上面的 % 成长）</p></div>
                                     <div><label className="block text-sm font-medium text-slate-700 mb-1">未来每年收入增加 (%)</label><div className="flex items-center gap-2"><input type="range" min="0" max="20" step="0.5" value={incomeGrowth} onChange={(e) => setIncomeGrowth(Number(e.target.value))} className="w-full accent-orange-500" /><span className="w-12 text-right font-mono">{incomeGrowth}%</span></div></div>
                                 </div>
                             </div>
@@ -390,7 +390,7 @@
                                     <div className="bg-rose-500 text-white p-8 rounded-2xl shadow-md">
                                         <p className="text-rose-100 font-medium mb-2 text-lg">按你的现况，到 {retireAge} 岁还没到 Coast FIRE</p>
                                         <h2 className="text-3xl md:text-4xl font-extrabold mb-2">还差 {formatMYR(results.shortfallAtRetire)}</h2>
-                                        <p className="text-rose-50 text-sm md:text-base">拉高收入成长 / 多存一点 / 提高退休前 CAGR，或调整退休年龄与目标生活费，再看看。越迟开始，需要的 Coast FIRE 越大。</p>
+                                        <p className="text-rose-50 text-sm md:text-base">拉高收入成长 / 多存一点（尤其负现金流会越存越少）/ 提高退休前 CAGR，或调整退休年龄与目标生活费，再看看。越迟开始，需要的 Coast FIRE 越大。</p>
                                     </div>
                                 )}
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

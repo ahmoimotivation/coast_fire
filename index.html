@@ -3,13 +3,16 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Moi's Coast FIRE Calculator</title>
+    <title>FU Money Calculator</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;700;900&display=swap" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com"></script>
+    <script>tailwind.config={theme:{extend:{colors:{fu:'#EE6A1E',fud:'#CC5413',fus:'#FCE6D5'},fontFamily:{sans:['Noto Sans SC','system-ui','sans-serif']}}}}</script>
+    <style>body{font-family:'Noto Sans SC',system-ui,sans-serif}</style>
     <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 </head>
-<body class="bg-slate-100">
+<body class="bg-[#F5F3EF]">
     <div id="root"></div>
 
     <script type="text/babel">
@@ -86,7 +89,7 @@
                     }
                 }
 
-                // ===== 我的现况投影：几时达到 Coast FIRE =====
+                // ===== 我的现况投影：几时达到 FU Money =====
                 const gInc = incomeGrowth / 100;
                 const projByAge = {};
                 let coastFireAge = null, coastFireNW = 0, coastFireRequired = 0;
@@ -263,9 +266,9 @@
                 if (!results.coastTable || results.coastTable.length === 0) return null;
                 return (
                     <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
-                        <h3 className="text-lg font-bold mb-1">逐年 Coast FIRE 进度表</h3>
+                        <h3 className="text-lg font-bold mb-1">逐年 FU Money 进度表</h3>
                         <p className="text-sm text-slate-500 mb-4">
-                            <span className="font-semibold text-emerald-600">绿色 = 每一年所需的 Coast FIRE 启动本金</span>——越迟才存到，需要的越大（复利时间变短）。
+                            <span className="font-semibold text-emerald-600">绿色 = 每一年所需的 FU Money 启动本金</span>——越迟才存到，需要的越大（复利时间变短）。
                             <span className="font-semibold text-orange-600">橙色 = 你按现况预计的净值</span>（含每年收入成长 + 储蓄；若负现金流会倒退）。橙色第一次 ≥ 绿色那一年，就是你<span className="font-semibold text-orange-600">「上岸」</span>的时候。
                         </p>
                         <div className="overflow-x-auto">
@@ -274,7 +277,7 @@
                                     <tr className="border-b-2 border-slate-200 text-slate-500">
                                         <th className="py-2 pr-4 font-medium">年龄</th>
                                         <th className="py-2 pr-4 font-medium">距退休</th>
-                                        <th className="py-2 pr-4 font-medium text-right">Coast FIRE 数字<br/><span className="text-xs text-emerald-600 font-normal">账面 (那一年的钱)</span></th>
+                                        <th className="py-2 pr-4 font-medium text-right">FU Money 数字<br/><span className="text-xs text-emerald-600 font-normal">账面 (那一年的钱)</span></th>
                                         <th className="py-2 pr-4 font-medium text-right">你的预计净值<br/><span className="text-xs text-orange-600 font-normal">(那一年的钱)</span></th>
                                         <th className="py-2 pr-4 font-medium text-center">状态</th>
                                         <th className="py-2 pl-4 font-medium text-right">购买力现值<br/><span className="text-xs text-blue-600 font-normal">(今天的钱)</span></th>
@@ -357,8 +360,8 @@
                     <div className="max-w-6xl mx-auto">
                         <header className="mb-8 flex flex-wrap justify-between items-start gap-3">
                             <div>
-                                <h1 className="text-3xl font-bold text-slate-900 mb-2">Coast FIRE 自由计算器</h1>
-                                <p className="text-slate-600">探索规律，掌控人生。计算你现在需要准备多少钱，就能在 {retireAge} 岁安心退休。<span className="text-emerald-600 font-medium">（输入会自动保存，下次打开还在）</span></p>
+                                <h1 className="text-3xl md:text-4xl font-black text-[#111111] mb-2">FU Money <span className="text-fu">计算器</span></h1>
+                                <p className="text-slate-600">算出你的自由数字。看你现在需要多少钱、几时能财务自由，就能在 {retireAge} 岁安心退休。<span className="text-fu font-medium">（输入会自动保存，下次打开还在）</span></p>
                             </div>
                             <button onClick={resetAll} className="text-sm px-4 py-2 rounded-lg border border-slate-300 text-slate-600 hover:bg-slate-100 whitespace-nowrap">↺ 重置为预设</button>
                         </header>
@@ -378,32 +381,32 @@
                                     <div><label className="block text-sm font-medium text-slate-700 mb-1">退休后保守 CAGR (%)</label><div className="flex items-center gap-2"><input type="range" min="0" max="30" step="0.1" value={postRetireCagr} onChange={(e) => setPostRetireCagr(Number(e.target.value))} className="w-full" /><span className="w-12 text-right font-mono">{postRetireCagr}%</span></div></div>
                                 </div>
 
-                                <h2 className="text-xl font-bold border-b pb-2 pt-4">我的现况 <span className="text-sm font-normal text-orange-600">（看几时上岸）</span></h2>
+                                <h2 className="text-xl font-bold border-b pb-2 pt-4">我的现况 <span className="text-sm font-normal text-fu">（看几时上岸）</span></h2>
                                 <div className="space-y-4">
-                                    <div><label className="block text-sm font-medium text-slate-700 mb-1">现在的净值 Net Worth</label><div className="relative"><span className="absolute left-3 top-2 text-slate-500">RM</span><input type="number" value={currentNetWorth} onChange={(e) => setCurrentNetWorth(Number(e.target.value))} className="w-full p-2 pl-10 border border-slate-300 rounded focus:ring-2 focus:ring-orange-500 outline-none" /></div></div>
-                                    <div><label className="block text-sm font-medium text-slate-700 mb-1">现在每月收入</label><div className="relative"><span className="absolute left-3 top-2 text-slate-500">RM</span><input type="number" value={monthlyIncome} onChange={(e) => setMonthlyIncome(Number(e.target.value))} className="w-full p-2 pl-10 border border-slate-300 rounded focus:ring-2 focus:ring-orange-500 outline-none" /></div></div>
-                                    <div><label className="block text-sm font-medium text-slate-700 mb-1">现在每月生活费</label><div className="relative"><span className="absolute left-3 top-2 text-slate-500">RM</span><input type="number" value={monthlyExpense} onChange={(e) => setMonthlyExpense(Number(e.target.value))} className="w-full p-2 pl-10 border border-slate-300 rounded focus:ring-2 focus:ring-orange-500 outline-none" /></div><p className={`text-xs mt-1 ${(monthlyIncome - monthlyExpense) < 0 ? 'text-rose-500 font-semibold' : 'text-slate-400'}`}>{(monthlyIncome - monthlyExpense) >= 0 ? `每月可存 ≈ RM ${(monthlyIncome - monthlyExpense).toLocaleString()}` : `⚠️ 每月透支 RM ${Math.abs(monthlyIncome - monthlyExpense).toLocaleString()}（负现金流会吃掉净值）`}（生活费随通胀 {inflation}% 逐年变多，收入随上面的 % 成长）</p></div>
+                                    <div><label className="block text-sm font-medium text-slate-700 mb-1">现在的净值 Net Worth</label><div className="relative"><span className="absolute left-3 top-2 text-slate-500">RM</span><input type="number" value={currentNetWorth} onChange={(e) => setCurrentNetWorth(Number(e.target.value))} className="w-full p-2 pl-10 border border-slate-300 rounded focus:ring-2 focus:ring-fu outline-none" /></div></div>
+                                    <div><label className="block text-sm font-medium text-slate-700 mb-1">现在每月收入</label><div className="relative"><span className="absolute left-3 top-2 text-slate-500">RM</span><input type="number" value={monthlyIncome} onChange={(e) => setMonthlyIncome(Number(e.target.value))} className="w-full p-2 pl-10 border border-slate-300 rounded focus:ring-2 focus:ring-fu outline-none" /></div></div>
+                                    <div><label className="block text-sm font-medium text-slate-700 mb-1">现在每月生活费</label><div className="relative"><span className="absolute left-3 top-2 text-slate-500">RM</span><input type="number" value={monthlyExpense} onChange={(e) => setMonthlyExpense(Number(e.target.value))} className="w-full p-2 pl-10 border border-slate-300 rounded focus:ring-2 focus:ring-fu outline-none" /></div><p className={`text-xs mt-1 ${(monthlyIncome - monthlyExpense) < 0 ? 'text-rose-500 font-semibold' : 'text-slate-400'}`}>{(monthlyIncome - monthlyExpense) >= 0 ? `每月可存 ≈ RM ${(monthlyIncome - monthlyExpense).toLocaleString()}` : `⚠️ 每月透支 RM ${Math.abs(monthlyIncome - monthlyExpense).toLocaleString()}（负现金流会吃掉净值）`}（生活费随通胀 {inflation}% 逐年变多，收入随上面的 % 成长）</p></div>
                                     <div><label className="block text-sm font-medium text-slate-700 mb-1">未来每年收入增加 (%)</label><div className="flex items-center gap-2"><input type="range" min="0" max="20" step="0.5" value={incomeGrowth} onChange={(e) => setIncomeGrowth(Number(e.target.value))} className="w-full accent-orange-500" /><span className="w-12 text-right font-mono">{incomeGrowth}%</span></div></div>
                                 </div>
                             </div>
                             <div className="lg:col-span-8 space-y-6">
-                                <div className="bg-blue-600 text-white p-8 rounded-2xl shadow-md">
-                                    <p className="text-blue-100 font-medium mb-2 text-lg">现在需要的 Coast FIRE 启动本金 ({currentAge}岁)</p>
-                                    <h2 className="text-4xl md:text-5xl font-extrabold mb-4">{formatMYR(results.coastFirePV)}</h2>
-                                    <p className="text-blue-50 text-sm md:text-base">拥有这笔资金并维持 {cagr}% 增长，现在即可停止投入本金。</p>
+                                <div className="bg-[#111111] text-white p-8 rounded-2xl shadow-md">
+                                    <p className="text-white/60 font-medium mb-2 text-lg">现在需要的 FU Money 启动本金 ({currentAge}岁)</p>
+                                    <h2 className="text-4xl md:text-5xl font-black text-fu mb-4">{formatMYR(results.coastFirePV)}</h2>
+                                    <p className="text-white/70 text-sm md:text-base">拥有这笔资金并维持 {cagr}% 增长，现在即可停止投入本金。</p>
                                 </div>
 
                                 {results.coastFireAge !== null ? (
-                                    <div className="bg-orange-500 text-white p-8 rounded-2xl shadow-md">
-                                        <p className="text-orange-100 font-medium mb-2 text-lg">按你的现况，预计几时上岸 (达到 Coast FIRE)</p>
-                                        <h2 className="text-4xl md:text-5xl font-extrabold mb-2">{results.coastFireAge} 岁 <span className="text-2xl md:text-3xl font-bold">（还有 {results.coastFireAge - currentAge} 年）</span></h2>
-                                        <p className="text-orange-50 text-sm md:text-base">那一年你的预计净值 {formatMYR(results.coastFireNW)} ≥ 当年所需 Coast FIRE {formatMYR(results.coastFireRequired)}。之后不必再存，靠复利到 {retireAge} 岁退休。</p>
+                                    <div className="bg-fu text-white p-8 rounded-2xl shadow-md">
+                                        <p className="text-white/80 font-medium mb-2 text-lg">按你的现况，预计几时上岸 (达到 FU Money)</p>
+                                        <h2 className="text-4xl md:text-5xl font-black mb-2">{results.coastFireAge} 岁 <span className="text-2xl md:text-3xl font-bold">（还有 {results.coastFireAge - currentAge} 年）</span></h2>
+                                        <p className="text-white/90 text-sm md:text-base">那一年你的预计净值 {formatMYR(results.coastFireNW)} ≥ 当年所需 FU Money {formatMYR(results.coastFireRequired)}。之后不必再存，靠复利到 {retireAge} 岁退休。</p>
                                     </div>
                                 ) : (
                                     <div className="bg-rose-500 text-white p-8 rounded-2xl shadow-md">
-                                        <p className="text-rose-100 font-medium mb-2 text-lg">按你的现况，到 {retireAge} 岁还没到 Coast FIRE</p>
+                                        <p className="text-rose-100 font-medium mb-2 text-lg">按你的现况，到 {retireAge} 岁还没到 FU Money</p>
                                         <h2 className="text-3xl md:text-4xl font-extrabold mb-2">还差 {formatMYR(results.shortfallAtRetire)}</h2>
-                                        <p className="text-rose-50 text-sm md:text-base">拉高收入成长 / 多存一点（尤其负现金流会越存越少）/ 提高退休前 CAGR，或调整退休年龄与目标生活费，再看看。越迟开始，需要的 Coast FIRE 越大。</p>
+                                        <p className="text-rose-50 text-sm md:text-base">拉高收入成长 / 多存一点（尤其负现金流会越存越少）/ 提高退休前 CAGR，或调整退休年龄与目标生活费，再看看。越迟开始，需要的 FU Money 越大。</p>
                                     </div>
                                 )}
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

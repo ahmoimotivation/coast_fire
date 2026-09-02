@@ -116,7 +116,7 @@
                 }
                 let maxProj = 0;
                 Object.values(projByAge).forEach(v => { if (v > maxProj) maxProj = v; });
-                coastTable = coastTable.map(r => ({ ...r, projNW: projByAge[r.age], reached: projByAge[r.age] >= r.nominal }));
+                coastTable = coastTable.map(r => ({ ...r, projNW: projByAge[r.age], projNWPV: projByAge[r.age] !== undefined ? projByAge[r.age] / Math.pow(1 + i, r.age - currentAge) : undefined, reached: projByAge[r.age] >= r.nominal }));
 
                 let chartData = [];
                 let currentReal = coastFirePV;
@@ -278,7 +278,8 @@
                                         <th className="py-2 pr-4 font-medium">年龄</th>
                                         <th className="py-2 pr-4 font-medium">距退休</th>
                                         <th className="py-2 pr-4 font-medium text-right">FU Money 数字<br/><span className="text-xs text-emerald-600 font-normal">账面 (那一年的钱)</span></th>
-                                        <th className="py-2 pr-4 font-medium text-right">你的预计净值<br/><span className="text-xs text-orange-600 font-normal">(那一年的钱)</span></th>
+                                        <th className="py-2 pr-4 font-medium text-right">你的预计净值<br/><span className="text-xs text-orange-600 font-normal">账面 (那一年的钱)</span></th>
+                                        <th className="py-2 pr-4 font-medium text-right">你的预计净值<br/><span className="text-xs text-amber-500 font-normal">现值 (今天的钱)</span></th>
                                         <th className="py-2 pr-4 font-medium text-center">状态</th>
                                         <th className="py-2 pl-4 font-medium text-right">购买力现值<br/><span className="text-xs text-blue-600 font-normal">(今天的钱)</span></th>
                                     </tr>
@@ -295,6 +296,7 @@
                                             <td className="py-2 pr-4 text-slate-500">{row.yearsLeft > 0 ? `${row.yearsLeft} 年` : '—'}</td>
                                             <td className="py-2 pr-4 text-right font-mono text-emerald-700">{formatMYR(row.nominal)}</td>
                                             <td className="py-2 pr-4 text-right font-mono text-orange-700">{formatMYR(row.projNW)}</td>
+                                            <td className="py-2 pr-4 text-right font-mono text-amber-500">{formatMYR(row.projNWPV)}</td>
                                             <td className="py-2 pr-4 text-center">{row.reached ? <span className="text-emerald-600 font-bold">✓ 达标</span> : <span className="text-rose-500 text-xs">差 {formatShortMYR(row.nominal - row.projNW)}</span>}</td>
                                             <td className="py-2 pl-4 text-right font-mono text-blue-700">{formatMYR(row.realPV)}</td>
                                         </tr>
@@ -303,7 +305,7 @@
                             </table>
                         </div>
                         <p className="text-xs text-slate-400 mt-3">
-                            * 账面 = 用退休前 CAGR {cagr}% 名义增长；购买力现值 = 用抗通胀实际回酬 {results.realRatePre.toFixed(2)}% 增长。退休当年账面应达到目标账面 FV。
+                            * 账面 = 用退休前 CAGR {cagr}% 名义增长；你的预计净值现值 = 把当年账面净值用通胀 {inflation}% 折回今天的购买力；购买力现值 = 用抗通胀实际回酬 {results.realRatePre.toFixed(2)}% 增长。退休当年账面应达到目标账面 FV。
                         </p>
                     </div>
                 );

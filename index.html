@@ -91,16 +91,29 @@
 
                 // ===== 我的现况投影：几时达到 FU Money =====
                 const gInc = incomeGrowth / 100;
+                // 「完全自由」所需：在某一岁直接退休、靠资产撑到 deathAge 所需的本金（当年账面）
+                const annuityPV = (yrs) => {
+                    if (yrs <= 0) return 0;
+                    if (Math.abs(realRatePost) < 0.00001) return annualSpendingPV * yrs;
+                    return annualSpendingPV * ((1 - Math.pow(1 + realRatePost, -yrs)) / realRatePost) * (1 + realRatePost);
+                };
                 const projByAge = {};
+                const fullReqByAge = {};
                 let coastFireAge = null, coastFireNW = 0, coastFireRequired = 0;
+                let fullFireAge = null, fullFireNW = 0, fullFireRequired = 0;
                 let projNW = currentNetWorth;
                 if (yearsToRetire >= 0) {
                     for (let age = currentAge; age <= retireAge; age++) {
                         const n = age - currentAge;
                         const required = coastFirePV * Math.pow(1 + rPre, n);
+                        const fullReq = annuityPV(deathAge - age) * Math.pow(1 + i, n);
                         projByAge[age] = projNW;
+                        fullReqByAge[age] = fullReq;
                         if (coastFireAge === null && projNW >= required) {
                             coastFireAge = age; coastFireNW = projNW; coastFireRequired = required;
+                        }
+                        if (fullFireAge === null && projNW >= fullReq) {
+                            fullFireAge = age; fullFireNW = projNW; fullFireRequired = fullReq;
                         }
                         const incMon = monthlyIncome * Math.pow(1 + gInc, n);
                         const expMon = monthlyExpense * Math.pow(1 + i, n);
@@ -116,7 +129,7 @@
                 }
                 let maxProj = 0;
                 Object.values(projByAge).forEach(v => { if (v > maxProj) maxProj = v; });
-                coastTable = coastTable.map(r => ({ ...r, projNW: projByAge[r.age], projNWPV: projByAge[r.age] !== undefined ? projByAge[r.age] / Math.pow(1 + i, r.age - currentAge) : undefined, reached: projByAge[r.age] >= r.nominal }));
+                coastTable = coastTable.map(r => ({ ...r, projNW: projByAge[r.age], projNWPV: projByAge[r.age] !== undefined ? projByAge[r.age] / Math.pow(1 + i, r.age - currentAge) : undefined, fullFireReq: fullReqByAge[r.age], isFullFree: r.age === fullFireAge, reached: projByAge[r.age] >= r.nominal }));
 
                 let chartData = [];
                 let currentReal = coastFirePV;
@@ -171,7 +184,7 @@
                 return {
                     coastFirePV, fireTargetPV, fireTargetNominal: fireTargetPV * Math.pow(1 + i, yearsToRetire),
                     realRatePre: realRatePre * 100, realRatePost: realRatePost * 100, chartData, maxNominal, coastTable, drawdownTable, depletedAge,
-                    coastFireAge, coastFireNW, coastFireRequired, shortfallAtRetire, maxProj
+                    coastFireAge, coastFireNW, coastFireRequired, fullFireAge, fullFireNW, fullFireRequired, shortfallAtRetire, maxProj
                 };
             }, [currentAge, retireAge, deathAge, monthlyTargetPV, inflation, cagr, postRetireCagr, currentNetWorth, monthlyIncome, monthlyExpense, incomeGrowth]);
 
@@ -269,7 +282,7 @@
                         <h3 className="text-lg font-bold mb-1">逐年 FU Money 进度表</h3>
                         <p className="text-sm text-slate-500 mb-4">
                             <span className="font-semibold text-emerald-600">绿色 = 每一年所需的 FU Money 启动本金</span>——越迟才存到，需要的越大（复利时间变短）。
-                            <span className="font-semibold text-orange-600">橙色 = 你按现况预计的净值</span>（含每年收入成长 + 储蓄；若负现金流会倒退）。橙色第一次 ≥ 绿色那一年，就是你<span className="font-semibold text-orange-600">「上岸」</span>的时候。
+                            <span className="font-semibold text-orange-600">橙色 = 你按现况预计的净值</span>（含每年收入成长 + 储蓄；若负现金流会倒退）。橙色第一次 ≥ 绿色那一年，就是你<span className="font-semibold text-orange-600">「上岸」</span>的时候；若更早存够「直接退休」的全部本金，那一年会以<span className="font-semibold text-green-700">绿底标出「完全自由」</span>（比上岸更进一步，不必等到退休年龄）。
                         </p>
                         <div className="overflow-x-auto">
                             <table className="w-full text-sm text-left">
@@ -286,11 +299,12 @@
                                 </thead>
                                 <tbody>
                                     {results.coastTable.map((row) => (
-                                        <tr key={row.age} className={`border-b border-slate-100 ${row.age === results.coastFireAge ? 'bg-orange-100 font-semibold' : (row.isRetire ? 'bg-rose-50 font-bold' : (row.age === currentAge ? 'bg-blue-50' : 'hover:bg-slate-50'))}`}>
+                                        <tr key={row.age} className={`border-b border-slate-100 ${row.isFullFree ? 'bg-green-100 font-semibold' : (row.age === results.coastFireAge ? 'bg-orange-100 font-semibold' : (row.isRetire ? 'bg-rose-50 font-bold' : (row.age === currentAge ? 'bg-blue-50' : 'hover:bg-slate-50')))}`}>
                                             <td className="py-2 pr-4">
                                                 {row.age} 岁
                                                 {row.age === currentAge && <span className="ml-2 text-xs text-blue-600 font-semibold">(现在)</span>}
                                                 {row.age === results.coastFireAge && <span className="ml-2 text-xs text-orange-600 font-semibold">(上岸!)</span>}
+                                                {row.isFullFree && <span className="ml-2 text-xs text-green-700 font-semibold">(完全自由!)</span>}
                                                 {row.isRetire && <span className="ml-2 text-xs text-rose-600 font-semibold">(退休)</span>}
                                             </td>
                                             <td className="py-2 pr-4 text-slate-500">{row.yearsLeft > 0 ? `${row.yearsLeft} 年` : '—'}</td>
@@ -409,6 +423,13 @@
                                         <p className="text-rose-100 font-medium mb-2 text-lg">按你的现况，到 {retireAge} 岁还没到 FU Money</p>
                                         <h2 className="text-3xl md:text-4xl font-extrabold mb-2">还差 {formatMYR(results.shortfallAtRetire)}</h2>
                                         <p className="text-rose-50 text-sm md:text-base">拉高收入成长 / 多存一点（尤其负现金流会越存越少）/ 提高退休前 CAGR，或调整退休年龄与目标生活费，再看看。越迟开始，需要的 FU Money 越大。</p>
+                                    </div>
+                                )}
+                                {results.fullFireAge !== null && (
+                                    <div className="bg-emerald-600 text-white p-8 rounded-2xl shadow-md">
+                                        <p className="text-white/80 font-medium mb-2 text-lg">🎉 更进一步：预计几时「完全自由」（净值够直接退休，不必等到 {retireAge} 岁）</p>
+                                        <h2 className="text-4xl md:text-5xl font-black mb-2">{results.fullFireAge} 岁 <span className="text-2xl md:text-3xl font-bold">（还有 {results.fullFireAge - currentAge} 年）</span></h2>
+                                        <p className="text-white/90 text-sm md:text-base">那一年你的预计净值 {formatMYR(results.fullFireNW)} ≥ 当年「完全自由」所需 {formatMYR(results.fullFireRequired)}。到这里就能立刻停工退休，不只是上岸。</p>
                                     </div>
                                 )}
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

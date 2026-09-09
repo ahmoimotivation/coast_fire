@@ -571,11 +571,6 @@
                                 </div>
                                 {renderJourneyChart()}
                                 {renderCoastTable()}
-                                <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
-                                    <h3 className="text-lg font-bold mb-1">资产生命周期模拟</h3>
-                                    <p className="text-sm text-slate-500">抗通胀实际回酬率: <span className="text-blue-600 font-semibold">退休前 {results.realRatePre.toFixed(2)}%</span> | <span className="text-emerald-600 font-semibold">退休后 {results.realRatePost.toFixed(2)}%</span></p>
-                                    {renderChart()}
-                                </div>
                                 {renderDrawdownTable()}
                             </div>
                         </div>
